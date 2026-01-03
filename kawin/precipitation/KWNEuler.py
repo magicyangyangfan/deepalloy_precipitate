@@ -358,7 +358,7 @@ class PrecipitateModel (PrecipitateBase):
             minRadius - minimum radius to be considered a precipitate
         '''
         for p in range(len(self.phases)):
-            x[p][:self.RdrivingForceIndex[p]+1] = 0
+            x[p][:self.RdrivingForceIndex[p]] = 0
             x[p][self.PBM[p].PSDsize < self.constraints.minRadius] = 0
         return
     
@@ -648,7 +648,7 @@ class PrecipitateModel (PrecipitateBase):
                     self.PSDXalpha[p] = np.zeros((self.PBM[p].bins + 1, self.numberOfElements))
                     self.PSDXbeta[p] = np.zeros((self.PBM[p].bins + 1, self.numberOfElements))
                 self.growth, _ = self._growthRate(self.data.copySlice(self.data.n))
-            self.PBM[p].PSD[:self.RdrivingForceIndex[p]+1] = 0
+            self.PBM[p].PSD[:self.RdrivingForceIndex[p]] = 0
             self.PBM[p].PSD[self.PBM[p].PSDsize < self.constraints.minRadius] = 0
             self.dissolutionIndex[p] = self.PBM[p].getDissolutionIndex(self.constraints.maxDissolution, self.RdrivingForceIndex[p])
 
