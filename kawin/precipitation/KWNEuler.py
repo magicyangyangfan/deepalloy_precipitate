@@ -96,7 +96,7 @@ class PrecipitateModel (PrecipitateBase):
                 self.PBM[p].setAdaptiveBinSize(adaptive)
         else:
             index = self.phaseIndex(phase)
-            self.PBM[index] = PopulationBalanceModel(cMin, cMax, bins, minBins, maxBins, self.PBM[p].record)
+            self.PBM[index] = PopulationBalanceModel(cMin, cMax, bins, minBins, maxBins, self.PBM[index].record)
             self.PBM[index].setAdaptiveBinSize(adaptive)
 
     def setPSDrecording(self, record = True, phase = 'all'):
