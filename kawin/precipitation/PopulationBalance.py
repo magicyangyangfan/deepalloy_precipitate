@@ -152,8 +152,9 @@ class PopulationBalanceModel:
         '''
         if self._record:
             maxBins = self.maxBins if self._adaptiveBinSize else self.bins
-            self._recordedBins = np.pad(self._recordedBins, ((0, 1), (0, maxBins+1 - self._recordedBins.shape[1])))
-            self._recordedPSD = np.pad(self._recordedPSD, ((0, 1), (0, maxBins - self._recordedPSD.shape[1])))
+            # If _recordedBins and _recordedPSD already have some padding, then no need to pad on the second axis
+            self._recordedBins = np.pad(self._recordedBins, ((0, 1), (0, np.amax([0, maxBins+1 - self._recordedBins.shape[1]]))))
+            self._recordedPSD = np.pad(self._recordedPSD, ((0, 1), (0, np.amax([0, maxBins - self._recordedPSD.shape[1]]))))
             self._recordedTime = np.pad(self._recordedTime, (0,1))
             self._recordedBins[-1][:self.PSDbounds.shape[0]] = self.PSDbounds
             self._recordedPSD[-1][:self.PSD.shape[0]] = self.PSD

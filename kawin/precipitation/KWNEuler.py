@@ -88,13 +88,15 @@ class PrecipitateModel (PrecipitateBase):
         phase : str
             Phase to consider (will set all phases if phase = None or 'all')
         '''
+        # since we don't have "record" as an input here, set record to what the previous
+        # state of the PBM was when we re-initialize the PBMs
         if phase is None or phase == 'all':
             for p in range(len(self.phases)):
-                self.PBM[p] = PopulationBalanceModel(cMin, cMax, bins, minBins, maxBins)
+                self.PBM[p] = PopulationBalanceModel(cMin, cMax, bins, minBins, maxBins, self.PBM[p].record)
                 self.PBM[p].setAdaptiveBinSize(adaptive)
         else:
             index = self.phaseIndex(phase)
-            self.PBM[index] = PopulationBalanceModel(cMin, cMax, bins, minBins, maxBins)
+            self.PBM[index] = PopulationBalanceModel(cMin, cMax, bins, minBins, maxBins, self.PBM[p].record)
             self.PBM[index].setAdaptiveBinSize(adaptive)
 
     def setPSDrecording(self, record = True, phase = 'all'):
