@@ -8,7 +8,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "kawin"
-version = "0.3.1"
+version = "0.4.0"
 authors = [
     {name = "Nicholas Ury", email = "nury12n@gmail.com"},
 ]

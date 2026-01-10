@@ -9,7 +9,19 @@ If you still have issues setting up a simulation, feel free to open an issue.
 
 Installation
 ------------
-`pip install kawin`
+Installing through pip:
+
+```
+pip install kawin
+```
+
+Development version:
+
+```
+git clone https://github.com/materialsgenomefoundation/kawin
+cd kawin
+pip install -e .
+```
 
 Examples
 --------
