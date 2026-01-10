@@ -13,7 +13,10 @@ tutorialPictures/
 */__pycache__/
 */backup/
 */unused/
-/*.ipynb
-/*.py
-/*.npz
+*.ipynb
+*.py
+*.npz
+*.npy
+*.xml
+.coverage
 

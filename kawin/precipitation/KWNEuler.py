@@ -88,13 +88,15 @@ class PrecipitateModel (PrecipitateBase):
         phase : str
             Phase to consider (will set all phases if phase = None or 'all')
         '''
+        # since we don't have "record" as an input here, set record to what the previous
+        # state of the PBM was when we re-initialize the PBMs
         if phase is None or phase == 'all':
             for p in range(len(self.phases)):
-                self.PBM[p] = PopulationBalanceModel(cMin, cMax, bins, minBins, maxBins)
+                self.PBM[p] = PopulationBalanceModel(cMin, cMax, bins, minBins, maxBins, self.PBM[p].record)
                 self.PBM[p].setAdaptiveBinSize(adaptive)
         else:
             index = self.phaseIndex(phase)
-            self.PBM[index] = PopulationBalanceModel(cMin, cMax, bins, minBins, maxBins)
+            self.PBM[index] = PopulationBalanceModel(cMin, cMax, bins, minBins, maxBins, self.PBM[index].record)
             self.PBM[index].setAdaptiveBinSize(adaptive)
 
     def setPSDrecording(self, record = True, phase = 'all'):
@@ -358,7 +360,7 @@ class PrecipitateModel (PrecipitateBase):
             minRadius - minimum radius to be considered a precipitate
         '''
         for p in range(len(self.phases)):
-            x[p][:self.RdrivingForceIndex[p]+1] = 0
+            x[p][:self.RdrivingForceIndex[p]] = 0
             x[p][self.PBM[p].PSDsize < self.constraints.minRadius] = 0
         return
     
@@ -648,7 +650,7 @@ class PrecipitateModel (PrecipitateBase):
                     self.PSDXalpha[p] = np.zeros((self.PBM[p].bins + 1, self.numberOfElements))
                     self.PSDXbeta[p] = np.zeros((self.PBM[p].bins + 1, self.numberOfElements))
                 self.growth, _ = self._growthRate(self.data.copySlice(self.data.n))
-            self.PBM[p].PSD[:self.RdrivingForceIndex[p]+1] = 0
+            self.PBM[p].PSD[:self.RdrivingForceIndex[p]] = 0
             self.PBM[p].PSD[self.PBM[p].PSDsize < self.constraints.minRadius] = 0
             self.dissolutionIndex[p] = self.PBM[p].getDissolutionIndex(self.constraints.maxDissolution, self.RdrivingForceIndex[p])
 
