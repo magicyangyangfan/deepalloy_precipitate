@@ -1,5 +1,6 @@
 Thumbs.db
 __pycache__/
+results/
 .ipynb_checkpoints/
 .vscode/
 database/
@@ -14,7 +15,6 @@ tutorialPictures/
 */backup/
 */unused/
 *.ipynb
-*.py
 *.npz
 *.npy
 *.xml
