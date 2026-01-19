@@ -1,32 +1,18 @@
-# kawin
 
-Python implementation of the Kampmann-Wagner Numerical (KWN) model to predict precipitate nucleation and growth behavior. This package couples with pycalphad to perform thermodynamic and kinetic calculations.
+Git
+#
+We forked kawin from repo below
+upstream  git@github.com:materialsgenomefoundation/kawin.git
+might need to merge new commits from kawin main repo using command below:
 
-Notes
------
-There has been a lot of changes in the API. Please check the examples for further details.
-If you still have issues setting up a simulation, feel free to open an issue.
-
-Installation
-------------
-Installing through pip:
-
-```
-pip install kawin
-```
-
-Development version:
-
-```
-git clone https://github.com/materialsgenomefoundation/kawin
-cd kawin
-pip install -e .
-```
-
-Examples
---------
-Examples on Jupyter notebooks can be found on [NBViewer](https://nbviewer.org/github/materialsgenomefoundation/kawin/tree/main/examples/).
-
-Dependencies
-------------
-numpy, scipy, matplotlib, pycalphad
+git fetch upstream
+git rebase upstream/main
+#
+ 
+Docker Commands                                                        
+# Build                                                           
+docker build -t kawin-api:latest .                                          
+# Run                                                             
+docker run -d -p 8000:8000 kawin-api:latest                                
+# Test
+curl http://localhost:8000/health 
