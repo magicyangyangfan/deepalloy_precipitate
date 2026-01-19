@@ -346,77 +346,84 @@ volumes:
 
 ---
 
-## 5. CI/CD Pipeline (GitHub Actions → DigitalOcean App Platform)
+## 5. CI/CD Pipeline (GitHub Actions → GitHub Container Registry → Droplet)
 
-### `.github/workflows/deploy.yaml`
+### Why This Approach?
 
-```yaml
-name: Deploy to DigitalOcean
+| Approach | Description | Trade-off |
+|----------|-------------|-----------|
+| Build on Droplet | Clone repo, build image on server | Slow, needs large Droplet, downtime during build |
+| **Build in CI → Registry → Pull** | Build in GitHub Actions, store in registry, Droplet pulls | Fast deploys, smaller Droplet, no build downtime |
+| DigitalOcean App Platform | Fully managed PaaS | Higher cost, less control |
 
-on:
-  push:
-    branches: [main]
+**Decision: Build in CI, push to GitHub Container Registry (ghcr.io), pull on Droplet**
 
-jobs:
-  test:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-      - name: Install dependencies
-        run: pip install -e ".[dev]"
-      - name: Run tests
-        run: pytest
+### Workflow Overview
 
-  deploy:
-    needs: test
-    runs-on: ubuntu-latest
-    steps:
-      - name: Deploy to DigitalOcean App Platform
-        uses: digitalocean/app_action@v2
-        with:
-          app_name: kawin-simulation-api
-          token: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
+```
+┌─────────────┐     ┌─────────────┐     ┌─────────────┐     ┌─────────────┐
+│   GitHub    │────▶│   GitHub    │────▶│   ghcr.io   │────▶│   Droplet   │
+│   Push      │     │   Actions   │     │  (registry) │     │   (pull)    │
+└─────────────┘     │  (build)    │     └─────────────┘     └─────────────┘
+                    └─────────────┘
 ```
 
-### DigitalOcean App Platform Configuration (`.do/app.yaml`)
+### Workflow Files
 
-```yaml
-name: kawin-simulation-api
-region: nyc
-services:
-  - name: api
-    dockerfile_path: Dockerfile
-    github:
-      repo: your-username/deepalloy_precipitate
-      branch: main
-      deploy_on_push: true
-    instance_count: 1
-    instance_size_slug: professional-xs
-    http_port: 8000
-    routes:
-      - path: /
+**`.github/workflows/build-and-push.yaml`** - Builds and pushes Docker image on every push to main.
 
-  - name: worker
-    dockerfile_path: Dockerfile
-    github:
-      repo: your-username/deepalloy_precipitate
-      branch: main
-    instance_count: 1
-    instance_size_slug: professional-xs
-    run_command: arq app.workers.simulation_worker.WorkerSettings
+**`.github/workflows/deploy.yaml`** - Deploys to Droplet (auto-triggered after build, or manual).
 
-databases:
-  - name: db
-    engine: PG
-    production: false
+### GitHub Repository Secrets Required
 
-  - name: redis
-    engine: REDIS
-    production: false
+Configure these in: **Settings → Secrets and variables → Actions**
+
+| Secret | Description | Example |
+|--------|-------------|---------|
+| `DROPLET_HOST` | Droplet IP address | `164.90.xxx.xxx` |
+| `DROPLET_USER` | SSH username | `root` or `deploy` |
+| `DROPLET_SSH_KEY` | Private SSH key for Droplet | Contents of `~/.ssh/id_rsa` |
+
+> **Note:** `GITHUB_TOKEN` is automatically provided by GitHub Actions for ghcr.io authentication.
+
+### Droplet Initial Setup
+
+Run these commands once on a fresh Droplet:
+
+```bash
+# Install Docker
+curl -fsSL https://get.docker.com | sh
+
+# (Optional) Create deploy user
+useradd -m -s /bin/bash deploy
+usermod -aG docker deploy
+
+# (Optional) Set up SSH key for deploy user
+mkdir -p /home/deploy/.ssh
+echo "your-public-key" >> /home/deploy/.ssh/authorized_keys
+chmod 700 /home/deploy/.ssh
+chmod 600 /home/deploy/.ssh/authorized_keys
+chown -R deploy:deploy /home/deploy/.ssh
+
+# Login to GitHub Container Registry (first time)
+echo "YOUR_GITHUB_PAT" | docker login ghcr.io -u YOUR_GITHUB_USERNAME --password-stdin
+```
+
+### Manual Deployment (without CI/CD)
+
+```bash
+# SSH to Droplet
+ssh root@your-droplet-ip
+
+# Pull and run
+docker pull ghcr.io/your-username/deepalloy_precipitate:latest
+docker stop kawin-api 2>/dev/null || true
+docker rm kawin-api 2>/dev/null || true
+docker run -d --name kawin-api --restart unless-stopped -p 8000:8000 \
+  ghcr.io/your-username/deepalloy_precipitate:latest
+
+# Verify
+curl http://localhost:8000/health
 ```
 
 ---

@@ -1,0 +1,66 @@
+name: Deploy to Droplet
+
+on:
+  # Trigger after build-and-push completes
+  workflow_run:
+    workflows: ["Build and Push Docker Image"]
+    types: [completed]
+    branches: [main]
+
+  # Allow manual trigger
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: 'Image tag to deploy (default: latest)'
+        required: false
+        default: 'latest'
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    # Only run if triggered manually OR if the build workflow succeeded
+    if: |
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success')
+
+    steps:
+      - name: Deploy to Droplet via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.DROPLET_HOST }}
+          username: ${{ secrets.DROPLET_USER }}
+          key: ${{ secrets.DROPLET_SSH_KEY }}
+          script: |
+            # Login to GitHub Container Registry
+            echo ${{ secrets.GITHUB_TOKEN }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+
+            # Set image tag
+            IMAGE_TAG="${{ github.event.inputs.image_tag || 'latest' }}"
+            IMAGE="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${IMAGE_TAG}"
+
+            # Pull the new image
+            docker pull ${IMAGE}
+
+            # Stop and remove existing container (if running)
+            docker stop kawin-api 2>/dev/null || true
+            docker rm kawin-api 2>/dev/null || true
+
+            # Run the new container
+            docker run -d \
+              --name kawin-api \
+              --restart unless-stopped \
+              -p 8000:8000 \
+              ${IMAGE}
+
+            # Clean up old images
+            docker image prune -f
+
+            # Verify deployment
+            sleep 5
+            curl -f http://localhost:8000/health || exit 1
+
+            echo "Deployment successful!"
