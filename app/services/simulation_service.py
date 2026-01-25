@@ -1,165 +1,105 @@
 """
 Service layer that wraps the kawin precipitation simulation.
-
-Phase 1: Synchronous execution with in-memory results.
 """
 
 import numpy as np
-
 from app.config import settings
 from app.models.simulation import (
     SimulationRequest,
     SimulationResponse,
     SimulationSummary,
     PhaseResult,
+    PhaseTimeSeries,
+    TimeSeriesData,
 )
 from kawin.run_simulation import (
     AlMgSiPrecipitationSimulator,
     SimulatorConfig,
-    AspectRatioConfig,
-    DislocationConfig,
-    InterfacialEnergyConfig,
 )
-from kawin.precipitation.PrecipitationParameters import TemperatureParameters
 
 
 class SimulationService:
     """Service for running Al-Mg-Si precipitation simulations."""
 
     def __init__(self, tdb_file: str = None):
-        """
-        Initialize the simulation service.
-
-        Parameters
-        ----------
-        tdb_file : str, optional
-            Path to thermodynamic database file.
-            Defaults to settings.TDB_FILE.
-        """
         self.tdb_file = tdb_file or settings.TDB_FILE
 
-    def _build_config(self, request: SimulationRequest) -> SimulatorConfig:
-        """Build SimulatorConfig from request."""
-        config = SimulatorConfig()
-
-        if request.config is None:
-            return config
-
-        req_config = request.config
-
-        # Aspect ratio
-        if req_config.aspect_ratio:
-            config.aspect_ratio = AspectRatioConfig(
-                prefactor=req_config.aspect_ratio.prefactor,
-                exponent=req_config.aspect_ratio.exponent,
-            )
-
-        # Dislocation parameters
-        if req_config.dislocation:
-            config.dislocation = DislocationConfig(
-                shear_modulus=req_config.dislocation.shear_modulus_gpa * 1e9,
-                burgers_vector=req_config.dislocation.burgers_vector_nm * 1e-9,
-                poisson_ratio=req_config.dislocation.poisson_ratio,
-            )
-
-        # Interfacial energies
-        if req_config.interfacial_energy:
-            ie = req_config.interfacial_energy
-            config.interfacial_energy = InterfacialEnergyConfig(
-                MGSI_B_P=ie.MGSI_B_P,
-                MG5SI6_B_DP=ie.MG5SI6_B_DP,
-                B_PRIME_L=ie.B_PRIME_L,
-                U1_PHASE=ie.U1_PHASE,
-                U2_PHASE=ie.U2_PHASE,
-            )
-
-        # Taylor factor
-        config.taylor_factor = req_config.taylor_factor
-
-        return config
-
-    def _build_temperature_profile(
-        self, request: SimulationRequest
-    ) -> TemperatureParameters:
-        """Build TemperatureParameters from request."""
-        tp = request.temperature_profile
-        # Convert Celsius to Kelvin
-        temps_kelvin = [t + 273.15 for t in tp.temperatures_celsius]
-        return TemperatureParameters(tp.time_points_hours, temps_kelvin)
-
     def run_simulation(self, request: SimulationRequest) -> SimulationResponse:
-        """
-        Run a precipitation simulation synchronously.
+        """Run a precipitation simulation."""
+        config = SimulatorConfig(temperature_shift=request.temperature_shift)
 
-        Parameters
-        ----------
-        request : SimulationRequest
-            The simulation request containing composition, temperature profile,
-            and optional configuration.
-
-        Returns
-        -------
-        SimulationResponse
-            The simulation results.
-        """
-        # Build configuration
-        config = self._build_config(request)
-        temperature = self._build_temperature_profile(request)
-
-        # Create simulator
         simulator = AlMgSiPrecipitationSimulator(
             tdb_file=self.tdb_file,
-            init_composition=[request.composition.MG, request.composition.SI],
-            temperature=temperature,
+            init_composition=[request.mg_content, request.si_content],
+            aging_temperature=request.aging_temperature,
+            aging_time=request.aging_time,
             config=config,
         )
 
-        # Run simulation (convert hours to seconds)
-        simulation_time_seconds = request.simulation_time_hours * 3600
-        results = simulator.solve(
-            simulation_time=simulation_time_seconds,
-            verbose=False,
-        )
+        results = simulator.solve(verbose=False)
 
-        # Build response
-        return self._build_response(results, config)
+        return self._build_response(results, simulator)
 
-    def _build_response(self, results, config: SimulatorConfig) -> SimulationResponse:
+    def _build_response(self, results, simulator) -> SimulationResponse:
         """Build SimulationResponse from simulation results."""
+        # Build phase results
         phase_results = []
-
         for i, phase in enumerate(results.phases):
-            # Get final values
-            diameter = float(results.diameter[-1, i])
-            aspect_ratio = float(results.aspect_ratio[-1, i])
-            major_axis = float(results.major_axis_length[-1, i])
-            volume_fraction = float(results.volume_fraction[-1, i])
-            crss = results.orowan_crss[-1, i]
-            yield_strength = results.yield_strength[-1, i]
-
-            # Handle non-finite values
-            crss_mpa = float(crss / 1e6) if np.isfinite(crss) else 0.0
-            ys_mpa = float(yield_strength / 1e6) if np.isfinite(yield_strength) else 0.0
-
             phase_results.append(
                 PhaseResult(
                     name=phase,
-                    diameter_nm=round(diameter, 4),
-                    aspect_ratio=round(aspect_ratio, 4),
-                    major_axis_nm=round(major_axis, 4),
-                    volume_fraction=round(volume_fraction, 6),
-                    crss_mpa=round(crss_mpa, 2),
-                    yield_strength_mpa=round(ys_mpa, 2),
+                    diameter_nm=round(float(results.diameter[-1, i]), 2),
+                    major_axis_nm=round(float(results.major_axis_length[-1, i]), 2),
+                    volume_fraction_pct=round(float(results.volume_fraction[-1, i]) * 100, 4),
                 )
             )
 
         summary = SimulationSummary(
             final_time_hours=round(float(results.time_hours[-1]), 2),
+            user_temperature_c=simulator.user_temperature,
+            effective_temperature_c=simulator.effective_temperature,
             phases=phase_results,
-            total_crss_mpa=round(float(results.orowan_crss_total[-1] / 1e6), 2),
-            total_yield_strength_mpa=round(
-                float(results.yield_strength_total[-1] / 1e6), 2
-            ),
+            matrix_mg_wt_pct=round(float(results.matrix_Mg_wt_pct[-1]), 4),
+            matrix_si_wt_pct=round(float(results.matrix_Si_wt_pct[-1]), 4),
+            orowan_strength_mpa=round(float(results.orowan_strength[-1] / 1e6), 1),
+            solid_solution_strength_mpa=round(float(results.solid_solution_strength[-1] / 1e6), 1),
+            total_yield_strength_mpa=round(float(results.total_strength[-1] / 1e6), 1),
         )
 
-        return SimulationResponse(status="completed", summary=summary)
+        time_series = self._build_time_series(results)
+
+        return SimulationResponse(
+            status="completed",
+            summary=summary,
+            time_series=time_series,
+        )
+
+    def _build_time_series(self, results) -> TimeSeriesData:
+        """Build TimeSeriesData from simulation results."""
+        time_hours = [round(float(t), 4) for t in results.time_hours]
+
+        phase_time_series = []
+        for i, phase in enumerate(results.phases):
+            phase_time_series.append(
+                PhaseTimeSeries(
+                    name=phase,
+                    diameter_nm=self._to_list(results.diameter[:, i]),
+                    major_axis_nm=self._to_list(results.major_axis_length[:, i]),
+                    volume_fraction_pct=self._to_list(results.volume_fraction[:, i] * 100, 4),
+                )
+            )
+
+        return TimeSeriesData(
+            time_hours=time_hours,
+            phases=phase_time_series,
+            matrix_mg_wt_pct=self._to_list(results.matrix_Mg_wt_pct, 4),
+            matrix_si_wt_pct=self._to_list(results.matrix_Si_wt_pct, 4),
+            orowan_strength_mpa=self._to_list(results.orowan_strength / 1e6, 1),
+            solid_solution_strength_mpa=self._to_list(results.solid_solution_strength / 1e6, 1),
+            total_yield_strength_mpa=self._to_list(results.total_strength / 1e6, 1),
+        )
+
+    @staticmethod
+    def _to_list(arr: np.ndarray, decimals: int = 2) -> list[float]:
+        """Convert numpy array to list."""
+        return [round(float(v), decimals) if np.isfinite(v) else 0.0 for v in arr]

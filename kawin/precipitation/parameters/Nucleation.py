@@ -186,7 +186,7 @@ class GrainCornerDescription(NucleationDescriptionBase):
 
 class NucleationBarrierParameters:
     '''
-    Defines nucleation factors for bulk, dislocation, 
+    Defines nucleation factors for bulk, dislocation,
     surface, edge and corner nucleation
 
     This includes: surface area, volume, GB area removal, Rcrit and Gcrit
@@ -197,11 +197,16 @@ class NucleationBarrierParameters:
     areaFactor - factor to multiply by r**2 to get surface area of precipitate
     volumeFactor - factor to multiply by r**3 to get volume of precipitate
     areaRemoval - factor to multiply by r to get radius of eliminated grain boundary area
+    useNeedleNucleation - if True, use needle-specific nucleation theory from:
+        "Coupled precipitation and yield strength modelling for non-isothermal
+        treatments of a 6061 aluminium alloy"
+        where aspect = length/radius of needle
     '''
     def __init__(self, site='dislocations', gamma = None, gbEnergy=0.3):
         self._gbEnergy = gbEnergy
         self._gamma = gamma
         self._updateCallbacks = []
+        self._useNeedleNucleation = False
 
         self.setNucleationType(site)
 
@@ -320,6 +325,70 @@ class NucleationBarrierParameters:
     @property
     def isGrainBoundaryNucleation(self):
         return self.description.isGrainBoundaryNucleation
+
+    @property
+    def useNeedleNucleation(self):
+        '''
+        If True, use needle-specific nucleation theory for Rcrit and Gcrit calculations.
+
+        Reference: "Coupled precipitation and yield strength modelling for non-isothermal
+        treatments of a 6061 aluminium alloy"
+
+        Needle formulas:
+            r* = 2*gamma/|dG| * 2*aspect/(3*aspect-2)
+            G* = (16/3)*pi*gamma^3/dG^2 * 2*aspect^3/(3*aspect-2)^2
+
+        where aspect = length/radius of needle (must be > 2/3 for physical validity)
+        '''
+        return self._useNeedleNucleation
+
+    @useNeedleNucleation.setter
+    def useNeedleNucleation(self, value):
+        self._useNeedleNucleation = bool(value)
+
+    def needleRcritFactor(self, aspectRatio):
+        '''
+        Factor for critical radius calculation in needle nucleation theory.
+
+        factor = 2*aspect / (3*aspect - 2)
+
+        Parameters
+        ----------
+        aspectRatio : float or array
+            Aspect ratio (length/radius) of needle precipitate
+
+        Returns
+        -------
+        float or array
+            Factor to multiply with 2*gamma/dG to get Rcrit
+        '''
+        aspectRatio = np.atleast_1d(aspectRatio)
+        # Ensure aspect ratio > 2/3 for physical validity (denominator > 0)
+        aspectRatio = np.maximum(aspectRatio, 1.0)
+        factor = 2 * aspectRatio / (3 * aspectRatio - 2)
+        return np.squeeze(factor)
+
+    def needleGcritFactor(self, aspectRatio):
+        '''
+        Factor for critical Gibbs energy calculation in needle nucleation theory.
+
+        factor = 2*aspect^3 / (3*aspect - 2)^2
+
+        Parameters
+        ----------
+        aspectRatio : float or array
+            Aspect ratio (length/radius) of needle precipitate
+
+        Returns
+        -------
+        float or array
+            Factor to multiply with (16/3)*pi*gamma^3/dG^2 to get Gcrit
+        '''
+        aspectRatio = np.atleast_1d(aspectRatio)
+        # Ensure aspect ratio > 2/3 for physical validity (denominator > 0)
+        aspectRatio = np.maximum(aspectRatio, 1.0)
+        factor = 2 * aspectRatio**3 / (3 * aspectRatio - 2)**2
+        return np.squeeze(factor)
 
     def Rcrit(self, dG):
         '''

@@ -29,10 +29,19 @@ def volumetricDrivingForce(therm: GeneralThermodynamics, x, T, precipitate: Prec
 def nucleationBarrier(volumeDrivingForce, precipitate : PrecipitateParameters, aspectRatio = 1):
     '''
     Critical Gibbs free energy and radius at the nucleation barrier
-    For bulk and dislocation nucleation
+
+    For bulk and dislocation nucleation (default):
         Rcrit = 2*f*gamma / dG  (where f is the thermodynamic correction factor from the precipitate shape)
         Gcrit = (4*pi/3)*gamma*Rcrit^2
-    For grain boundary, edge or corner nucleation, critical G and R is computed to in NucleationBarrierParameters to account for grain boundary energy
+
+    For needle nucleation (when precipitate.nucleation.useNeedleNucleation = True):
+        Rcrit = 2*gamma/dG * 2*aspect/(3*aspect-2)
+        Gcrit = (16/3)*pi*gamma^3/dG^2 * 2*aspect^3/(3*aspect-2)^2
+        Reference: "Coupled precipitation and yield strength modelling for non-isothermal
+        treatments of a 6061 aluminium alloy"
+
+    For grain boundary, edge or corner nucleation:
+        Critical G and R is computed in NucleationBarrierParameters to account for grain boundary energy
     '''
     volumeDrivingForce = np.atleast_1d(volumeDrivingForce)
     indices = volumeDrivingForce > 0
@@ -42,9 +51,21 @@ def nucleationBarrier(volumeDrivingForce, precipitate : PrecipitateParameters, a
     Gcrit = np.zeros(volumeDrivingForce.shape)
 
     if not precipitate.nucleation.isGrainBoundaryNucleation:
-        RcritProposal = 2*precipitate.shapeFactor.description.thermoFactor(aspectRatio) * precipitate.gamma / volumeDrivingForce[indices]
-        Rcrit[indices] = np.amax([RcritProposal, Rmin[indices]], axis=0)
-        Gcrit[indices] = (4*np.pi/3) * precipitate.gamma * Rcrit[indices]**2
+        if precipitate.nucleation.useNeedleNucleation:
+            # Needle nucleation theory from paper:
+            # r* = 2*gamma/|dG| * 2*aspect/(3*aspect-2)
+            # G* = (16/3)*pi*gamma^3/dG^2 * 2*aspect^3/(3*aspect-2)^2
+            needleRfactor = precipitate.nucleation.needleRcritFactor(aspectRatio)
+            RcritProposal = 2 * precipitate.gamma / volumeDrivingForce[indices] * needleRfactor
+            Rcrit[indices] = np.amax([RcritProposal, Rmin[indices]], axis=0)
+
+            needleGfactor = precipitate.nucleation.needleGcritFactor(aspectRatio)
+            Gcrit[indices] = (16*np.pi/3) * precipitate.gamma**3 / volumeDrivingForce[indices]**2 * needleGfactor
+        else:
+            # Default: Holmedal et al. thermoFactor approach
+            RcritProposal = 2*precipitate.shapeFactor.description.thermoFactor(aspectRatio) * precipitate.gamma / volumeDrivingForce[indices]
+            Rcrit[indices] = np.amax([RcritProposal, Rmin[indices]], axis=0)
+            Gcrit[indices] = (4*np.pi/3) * precipitate.gamma * Rcrit[indices]**2
 
     else:
         RcritProposal = precipitate.nucleation.Rcrit(volumeDrivingForce[indices])
