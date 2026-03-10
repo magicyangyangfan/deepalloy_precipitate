@@ -57,7 +57,21 @@ jobs:
             type=sha,prefix=
             type=raw,value=latest
 
-      - name: Build and push Docker image
+      - name: Build Docker image locally
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          load: true
+          tags: kawin-api:smoke-test
+
+      - name: Smoke test
+        run: |
+          docker run -d --name kawin-smoke-test -p 8000:8000 kawin-api:smoke-test
+          sleep 5
+          curl -f http://localhost:8000/health
+          docker stop kawin-smoke-test && docker rm kawin-smoke-test
+
+      - name: Push Docker image
         uses: docker/build-push-action@v5
         with:
           context: .
