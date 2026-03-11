@@ -67,7 +67,11 @@ jobs:
       - name: Smoke test
         run: |
           docker run -d --name kawin-smoke-test -p 8000:8000 kawin-api:smoke-test
-          sleep 5
+          for i in $(seq 1 15); do
+            curl -sf http://localhost:8000/health && break
+            echo "Waiting for container... ($i/15)"
+            sleep 2
+          done
           curl -f http://localhost:8000/health
           docker stop kawin-smoke-test && docker rm kawin-smoke-test
 
