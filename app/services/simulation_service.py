@@ -2,6 +2,7 @@
 Service layer that wraps the kawin precipitation simulation.
 """
 
+import gc
 import numpy as np
 from app.config import settings
 from app.models.simulation import (
@@ -36,9 +37,14 @@ class SimulationService:
             config=config,
         )
 
-        results = simulator.solve(verbose=False)
-
-        return self._build_response(results, simulator)
+        # Delete temp calculations after simulation
+        try:
+            results = simulator.solve(verbose=False)
+            return self._build_response(results, simulator)
+        finally:
+            del simulator
+            del results
+            gc.collect()
 
     def _build_response(self, results, simulator) -> SimulationResponse:
         """Build SimulationResponse from simulation results."""
