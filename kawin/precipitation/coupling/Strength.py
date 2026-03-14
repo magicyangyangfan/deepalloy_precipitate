@@ -471,7 +471,7 @@ class StrengthModel:
             r2 = model.PBM[p].secondMoment()
             if r1 > 0:
                 rss[p] = np.sqrt(2/3) * r2 / r1
-                Ls[p] = np.sqrt(np.log(3) / (2*np.pi*r1) + (2*rss)**2) - 2*rss
+                Ls[p] = np.sqrt(np.log(3) / (2*np.pi*r1) + (2*rss[p])**2) - 2*rss[p]
 
         self.rss = np.append(self.rss, [rss], axis=0)
         self.Ls = np.append(self.Ls, [Ls], axis=0)
