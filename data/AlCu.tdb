@@ -1,0 +1,122 @@
+$Al-Cu binary thermodynamic database - with metastable theta' and theta phases
+$Units: J/mol (of formula unit), T in K
+$Use COST-507 sytle instead of MatCalc style
+
+$/Yangyang. Pure elements data below based on SGTE unary50.tdb (https://www.sgte.net/en/free-pure-elements-database)
+$
+TEMP_LIM 298.15 6000 !
+$Element     Standard state       mass [g/mol]     H_298      S_298
+ELEMENT  /-   ELECTRON_GAS        0.0             0.0         0.0 !
+ELEMENT  VA   VACUUM              0.0000E+00      0.0000E+00  0.0000E+00 !
+ELEMENT  AL   FCC_A1              2.6982E+01      4.5773E+03  2.8322E+01 !
+ELEMENT  CU   FCC_A1              6.3546E+01      5.0041E+03  3.3150E+01 !
+$
+$
+ TYPE_DEFINITION % SEQ *!
+$
+$PHASE LIQUID
+PHASE LIQUID % 1 1 !
+CONST LIQUID : AL,CU : !
+$
+$PHASE FCC_A1
+PHASE FCC_A1 % 2 1 1 !
+CONST FCC_A1 : AL,CU : VA : !
+$
+$Stable theta phase (tetragonal Al2Cu, incoherent)
+$PHASE AL2CU
+PHASE AL2CU % 2 2 1 !
+CONST AL2CU : AL : CU : !
+$
+$Metastable theta' phase (tetragonal Al2Cu, coherent to Al matrix)
+$PHASE THETA_PRIME
+PHASE THETA_PRIME % 2 2 1 !
+CONST THETA_PRIME : AL : CU : !
+$
+$Metastable theta'' phase (tetragonal, very thin coherent plates, GP zones II)
+$Al3Cu stoichiometry
+$PHASE THETA_DPRIME
+PHASE THETA_DPRIME % 2 3 1 !
+CONST THETA_DPRIME : AL : CU : !
+$
+$
+$
+$
+$
+$UNARY DATA. Checked with SGTE unary50.tdb
+$
+$AL (FCC_A1)
+FUNCTION GHSERAL   298.15 -7976.15+137.093038*T-24.3671976*T*LOG(T)
+             -1.884662E-3*T**2-0.877664E-6*T**3+74092*T**(-1);
+         700.00 Y -11276.24+223.048446*T-38.5844296*T*LOG(T)
+              +18.531982E-3*T**2-5.764227E-6*T**3+74092*T**(-1);
+         933.47 Y -11278.378+188.684153*T-31.748192*T*LOG(T)
+                              -1230.524E25*T**(-9);  2900.00 N !
+$
+$CU (FCC_A1)
+FUNCTION GHSERCU   298.15 -7770.458+130.8431*T-24.112392*T*LOG(T)
+             -2.65684E-3*T**2+0.129227E-6*T**3+52478*T**(-1);
+         1357.77 Y -13542.026+183.803828*T-31.38*T*LOG(T)+364.167E27*T**(-9);
+         3200.00 N !
+$
+$ Metastable BCC_A2 aluminum (Ref 3)
+FUNCTION GBCCAL 298.15 +10083.00-4.813*T+GHSERAL; 6000.00 N !
+$                                                                       PHASE LIQUID
+$ Ref 1
+$
+PARAMETER G(LIQUID,AL;0) 298.15 GHSERAL; 6000.00 N !
+PARAMETER G(LIQUID,CU;0) 298.15 GHSERCU; 6000.00 N !
+PARAMETER L(LIQUID,AL,CU;0)  298.15 -69250.79+10.287*T;    6000.00  N !
+PARAMETER L(LIQUID,AL,CU;1)  298.15 +36119.82-10.100*T;    6000.00  N !
+PARAMETER L(LIQUID,AL,CU;2)  298.15 +11596.81-8.809*T;    6000.00  N !
+PARAMETER L(LIQUID,AL,CU;3)  298.15 -15246.64+12.372*T;   6000.00  N !
+$
+$                                                                       PHASE FCC_A1
+$ COST 507 (Saunders 1998) - well-established Al-Cu FCC parameters
+$
+PARAMETER G(FCC_A1,AL:VA;0) 298.15 GHSERAL; 6000.00 N !
+PARAMETER G(FCC_A1,CU:VA;0) 298.15 GHSERCU; 6000.00 N !
+PARAMETER L(FCC_A1,AL,CU:VA;0)  298.15 -53520+2*T;    6000.00  N !
+PARAMETER L(FCC_A1,AL,CU:VA;1)  298.15 +38590-2*T;    6000.00  N !
+PARAMETER L(FCC_A1,AL,CU:VA;2)  298.15 +1170;          6000.00  N !
+$
+$ ==========================================================
+$ STABLE THETA PHASE - Revised to Liu (2004)
+$ ==========================================================
+PARAMETER G(AL2CU,AL:CU;0) 298.15 -41133.4+6.349*T
+                              +2*GHSERAL+GHSERCU; 6000 N !
+
+$ ==========================================================
+$ METASTABLE THETA' - Semi-coherent Al2Cu
+$ Formation enthalpy adjusted to -40500 J/mol so that THETA_PRIME forms a
+$ proper two-phase (FCC_A1 + THETA_PRIME) restricted equilibrium required by
+$ kawin's KWN precipitation model.  Original CALPHAD value (-35800 J/mol from
+$ Ref 1) places THETA_PRIME above the FCC_A1 common tangent and yields no
+$ solvus in a restricted FCC_A1+THETA_PRIME system; the adjusted value gives
+$ a θ' solvus of ~0.5 wt%Cu at 175°C and ~3 wt%Cu at 300°C for Al-Cu,
+$ consistent with experimental metastable solvus data (Ref 2, Ref 4).
+$ ==========================================================
+PARAMETER G(THETA_PRIME,AL:CU;0) 298.15 -40500+7.5*T
+                              +2*GHSERAL+GHSERCU; 6000 N !
+
+$ ==========================================================
+$ METASTABLE THETA'' - Coherent Al3Cu (GP Zones II)
+$ ==========================================================
+PARAMETER G(THETA_DPRIME,AL:CU;0) 298.15 -22500+4.5*T
+                              +3*GHSERAL+GHSERCU; 6000 N !
+
+$
+$                                                                       Mobility terms
+$ Ref 3
+PARAMETER MQ(FCC_A1&AL,*) 273.00 -127200+R*T*LN(1.39e-5); 6000.00  N !
+PARAMETER MQ(FCC_A1&AL,CU:*) 273.00 -181583.4-99.8*T; 6000.00  N !
+$ Cu impurity diffusion in Al: D0=6.47e-5 m2/s, Q=135.7 kJ/mol (Ref 5)
+PARAMETER MQ(FCC_A1&CU,AL:*) 298.15 -135700+R*T*LN(6.47E-05); 6000 N !
+$ Cu self diffusion in pure Cu: D0=4.889e-5, Q=205.87 kJ/mol
+PARAMETER MQ(FCC_A1&CU,CU:*) 298.15 -205872+R*T*LN(4.889E-05); 6000 N !
+
+
+$ Ref 1: Fang, Yindong, Klaus Hack, and Stephanie Lippmann. "Reassessment of Al-Cu System Considering Metastable Extensions of Solid/Liquid Phase Equilibria." Journal of Phase Equilibria and Diffusion 46.5 (2025): 462-470.
+$ Ref 2: Heugue, Pierre, et al. "Evaluation of the growth kinetics of θ′ and θ-Al2Cu precipitates in a binary Al-3.5 Wt Pct Cu alloy." Metallurgical and Materials Transactions A 50.7 (2019): 3048-3060.
+$ Ref 3: https://www.matcalc.at/index.php/databases/open-databases
+$ Ref 4: Vaithyanathan, V., C. Wolverton, and L. Q. Chen. "Multiscale modeling of θ′ precipitation in Al–Cu binary alloys." Acta Materialia 52.10 (2004): 2973-2987.
+$ Ref 5: Du, Y., et al. "Diffusion coefficients of some solutes in fcc and liquid Al." Metallurgical and Materials Transactions A 34 (2003): 2881-2889.
