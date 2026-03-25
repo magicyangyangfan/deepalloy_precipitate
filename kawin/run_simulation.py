@@ -765,6 +765,79 @@ def _resolve_tdb(name: str) -> str:
     return os.path.join(project_root, 'data', name)
 
 
+# Atomic masses (g/mol)
+_M_Al = 26.982
+_M_Mg = 24.305
+_M_Si = 28.086
+_M_Cu = 63.546
+
+
+def _convert_from_wt_to_at(
+    Si: float, Mg: float, Cu: float
+) -> tuple[float, float, float]:
+    """Convert wt% to mole fractions for Al-Mg-Si-Cu alloy (Al balance).
+
+    Returns
+    -------
+    (x_Mg, x_Si, x_Cu) : mole fractions
+    """
+    w_Al = 100.0 - Si - Mg - Cu
+    n_Al = w_Al / _M_Al
+    n_Mg = Mg / _M_Mg
+    n_Si = Si / _M_Si
+    n_Cu = Cu / _M_Cu
+    total = n_Al + n_Mg + n_Si + n_Cu
+    return n_Mg / total, n_Si / total, n_Cu / total
+
+
+def get_composition_in_FCC(
+    Si: float,
+    Mg: float,
+    Cu: float,
+    eff_factor: float = 0.8,
+) -> tuple[list[float] | None, list[float] | None]:
+    """Convert alloy composition (wt%) to the mole fractions that participate in FCC precipitation.
+    Ignore other alloying elements (e.g. Fe, Mn) that do not contribute to precipitation.
+
+    Applies an efficiency factor to account for the fraction of solute that
+    actually participates in precipitation. High Si (>= 0.8 wt%) is also
+    scaled by eff_factor before conversion.
+
+    Parameters
+    ----------
+    Si, Mg, Cu : float
+        Alloy element contents in wt%.
+    eff_factor : float
+        Fraction of solute assumed to participate in precipitation (default 0.8).
+
+    Returns
+    -------
+    almgsi_composition : list[float] | None
+        [Mg, Si] mole fractions for Al-Mg-Si subsystem, or None if both are zero.
+    cu_composition : list[float] | None
+        [Cu] mole fraction for Al-Cu subsystem, or None if Cu is zero.
+
+    Raises
+    ------
+    ValueError
+        If Cu == 0 or both Si and Mg are zero (no precipitation-capable solute).
+    """
+    if Cu == 0 or (Si == 0 and Mg == 0):
+        raise ValueError("missing critical solution elements")
+
+    if Si >= 0.8:
+        Si = Si * eff_factor
+    Mg = Mg * eff_factor
+    Cu = Cu * eff_factor
+
+    x_Mg, x_Si, x_Cu = _convert_from_wt_to_at(Si, Mg, Cu)
+
+    almgsi_composition = [x_Mg, x_Si] if (x_Mg > 0 or x_Si > 0) else None
+    cu_composition = [x_Cu] if x_Cu > 0 else None
+
+    return almgsi_composition, cu_composition
+
+
 def run_simulation(
     aging_temperature: float,
     aging_time: float,
