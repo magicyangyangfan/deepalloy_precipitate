@@ -892,7 +892,7 @@ if __name__ == '__main__':
     os.makedirs(out_dir, exist_ok=True)
 
     T_C          = 175.0   # aging temperature (°C)
-    AGING_TIME_H = 100.0   # aging time (h)
+    AGING_TIME_H = 24.0   # aging time (h)
 
     # Compositions (mole fractions)
     # Al-0.3Mg-1Si:      Mg=0.3 wt.% → 0.003330, Si=1.0 wt.% → 0.009607
@@ -900,9 +900,9 @@ if __name__ == '__main__':
     # Al-4.5Cu-0.5Mg-1Si: Cu=4.5 wt.% → 0.01961,
     #                      Mg=0.5 wt.% → 0.005551, Si=1.0 wt.% → 0.009604
     examples = [
-        dict(label='Al-0.3Mg-1Si',       mg=0.003330, si=0.009607, cu=0.0),
-        dict(label='Al-4.5Cu',            mg=0.0,      si=0.0,      cu=0.01961),
-        dict(label='Al-4.5Cu-0.5Mg-1Si', mg=0.005551, si=0.009604, cu=0.01961),
+        dict(label='Al-0.21Mg-0.7Si',    mg=0.002327, si=0.006725, cu=0.0),
+        # dict(label='Al-4.5Cu',            mg=0.0,      si=0.0,      cu=0.01961),
+        # dict(label='Al-4.5Cu-0.5Mg-1Si', mg=0.005551, si=0.009604, cu=0.01961),
     ]
     colors = ['steelblue', 'tomato', 'seagreen']
 
