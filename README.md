@@ -81,28 +81,6 @@ Once the container is running, access:
 - Swagger UI: http://localhost:8000/docs
 - ReDoc: http://localhost:8000/redoc
 
-## Deployment
-
-### Production server (DigitalOcean droplet)
-
-- Host: `146.190.120.252` (region: sfo3, hostname: `ubuntu-s-1vcpu-1gb-35gb-intel-sfo3-01`)
-- Provisioned: 2026-02-24
-- Login: `ssh root@146.190.120.252` (uses the SSH key registered with DigitalOcean)
-- Only `root` exists; no `appuser` on this droplet.
-
-### VS Code Remote-SSH
-
-Add to `~/.ssh/config` on your laptop:
-
-```
-Host deepalloy-precipitate
-    HostName 146.190.120.252
-    User root
-    IdentityFile ~/.ssh/id_ed25519
-```
-
-Then in VS Code: `F1` → `Remote-SSH: Connect to Host` → `deepalloy-precipitate`.
-
 ### Deploying / updating the service
 
 The production compose file lives at `/opt/deepalloy/docker-compose.yml` on the droplet and is tracked in this repo as `docker-compose.yml`. Compose is the source of truth — never start the container manually with `docker run`.
